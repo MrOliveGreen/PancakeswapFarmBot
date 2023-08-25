@@ -9,7 +9,9 @@ import { nonfungiblePositionManagerABI } from "~/abi/NonfungiblePositionManager"
 import "isomorphic-unfetch";
 import { Token, Percent } from '@pancakeswap/sdk'
 import { Pool, Position } from '@pancakeswap/v3-sdk'
+import { CurrencyAmount } from '@pancakeswap/swap-sdk-core'
 import { tryParseTick } from "./functions"
+
 const db = require("../models");
 const Setting = db.setting;
 const MyPosition = db.myposition;
@@ -61,15 +63,12 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
     return;
   }
 
-  const setting = await Setting.findOne({ order: [["id", "desc"]] });
+  let setting = await Setting.findOne({ order: [["id", "desc"]] });
   if (!setting) {
-    res.json({
-      success: false,
-      message: "Cannot find the setting."
-    });
-    return;
+    setting = { varianceRate: process.env.VARIANCE_RATE, rebalanceRate: process.env.REBALANCE_RATE };
   }
-
+  
+  console.log(setting);
   const priceCurrent = parseFloat(req.body.current);
 
   const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
@@ -78,10 +77,16 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
   console.log(priceLower, priceCurrent, priceUpper);
 
   try {
+    // const tickSpaceLimits = {
+    //   lower: nearestUsableTick(TickMath.MIN_TICK, TICK_SPACINGS[fee]),
+    //   upper: nearestUsableTick(TickMath.MAX_TICK, TICK_SPACINGS[fee])
+    // }
+
     const ticks: any = {
       lower: tryParseTick(eth, usdc, fee, priceLower.toString()),
       upper: tryParseTick(eth, usdc, fee, priceUpper.toString()),
     };
+    console.log(ticks);
 
     const v3Pool = getContract({ abi: PancakeV3PoolABI, address: `0x${process.env.BSC_V3POOL_ADDR}`, publicClient, walletClient });
     const slot0: any = await v3Pool.read.slot0();
@@ -100,7 +105,7 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
         amount0: parseUnits(String(req.body.amount), 18),
         useFullPrecision: true
       });
-      tiedAmount = position.mintAmounts.amount1;
+      tiedAmount = CurrencyAmount.fromRawAmount(usdc, position.amount1.quotient).toSignificant(6);
     } else {
       const position = Position.fromAmount1({
         pool: pool,
@@ -108,12 +113,12 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
         tickUpper: ticks.upper,
         amount1: parseUnits(String(req.body.amount), 18)
       });
-      tiedAmount = position.mintAmounts.amount0;
+      tiedAmount = CurrencyAmount.fromRawAmount(eth, position.amount0.quotient).toSignificant(6);
     }
 
     res.json({
       success: true,
-      amount: formatEther(tiedAmount)
+      amount: tiedAmount
     })
   } catch (e) {
     console.log(e)
@@ -133,13 +138,9 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     return;
   }
 
-  const setting = await Setting.findOne({ order: [["id", "desc"]] });
+  let setting = await Setting.findOne({ order: [["id", "desc"]] });
   if (!setting) {
-    res.json({
-      success: false,
-      message: "Cannot find the setting."
-    });
-    return;
+    setting = { varianceRate: process.env.VARIANCE_RATE, rebalanceRate: process.env.REBALANCE_RATE };
   }
 
   const priceCurrent = parseFloat(req.body.current);
@@ -272,9 +273,9 @@ export const createPosition: RequestHandler = async (req, res, next) => {
         nextPos: 0,
         isProcessing: 0
       };
-      await MyPosition.create(mypos);
+      const created = await MyPosition.create(mypos);
 
-      res.json({ success: true, position: mypos });
+      res.json({ success: true, position: created });
     } else {
       res.json({ success: false, message: 'Returned bad hash.' });
     }
