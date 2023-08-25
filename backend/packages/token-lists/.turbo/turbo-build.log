@@ -1,29 +1,29 @@
 
-> @pancakeswap/token-lists@0.0.8 build E:\project\pancake-frontend-develop\packages\token-lists
+> @pancakeswap/token-lists@0.0.8 build C:\Users\Olive\Documents\PancakeswapFarmBot\backend\packages\token-lists
 > tsup
 
 [34mCLI[39m Building entry: {"index":"./src/index.ts","react":"./react/index.ts"}
 [34mCLI[39m Using tsconfig: tsconfig.json
 [34mCLI[39m tsup v6.7.0
-[34mCLI[39m Using tsup config: E:\project\pancake-frontend-develop\packages\token-lists\tsup.config.ts
+[34mCLI[39m Using tsup config: C:\Users\Olive\Documents\PancakeswapFarmBot\backend\packages\token-lists\tsup.config.ts
 [34mCLI[39m Target: es6
 [34mESM[39m Build start
 [34mCJS[39m Build start
 Entry module "dist/getTokenList-YNKBKHZ3.js" is using named and default exports together. Consumers of your bundle will have to use `chunk.default` to access the default export, which may not be what you want. Use `output.exports: "named"` to disable this warning.
-[32mCJS[39m [1mdist\chunk-4TPCCB4K.js        [22m[32m1.49 KB[39m
-[32mCJS[39m [1mdist\index.js                 [22m[32m815.00 B[39m
 [32mCJS[39m [1mdist\chunk-OGWZ2K32.js        [22m[32m2.83 KB[39m
+[32mCJS[39m [1mdist\index.js                 [22m[32m815.00 B[39m
+[32mCJS[39m [1mdist\chunk-4TPCCB4K.js        [22m[32m1.49 KB[39m
 [32mCJS[39m [1mdist\getTokenList-YNKBKHZ3.js [22m[32m13.76 KB[39m
 [32mCJS[39m [1mdist\react.js                 [22m[32m8.97 KB[39m
-[32mCJS[39m ⚡️ Build success in 200ms
-[32mESM[39m [1mdist\index.mjs                 [22m[32m160.00 B[39m
+[32mCJS[39m ⚡️ Build success in 208ms
 [32mESM[39m [1mdist\chunk-2L3ZO4UM.mjs        [22m[32m1.42 KB[39m
-[32mESM[39m [1mdist\getTokenList-2FAKUE6D.mjs [22m[32m13.40 KB[39m
 [32mESM[39m [1mdist\chunk-COROHIJN.mjs        [22m[32m2.67 KB[39m
+[32mESM[39m [1mdist\index.mjs                 [22m[32m160.00 B[39m
+[32mESM[39m [1mdist\getTokenList-2FAKUE6D.mjs [22m[32m13.40 KB[39m
 [32mESM[39m [1mdist\react.mjs                 [22m[32m8.29 KB[39m
-[32mESM[39m ⚡️ Build success in 202ms
+[32mESM[39m ⚡️ Build success in 208ms
 [34mDTS[39m Build start
-[32mDTS[39m ⚡️ Build success in 2069ms
+[32mDTS[39m ⚡️ Build success in 2298ms
 [32mDTS[39m [1mdist\index.d.ts          [22m[32m1.68 KB[39m
 [32mDTS[39m [1mdist\react.d.ts          [22m[32m2.50 KB[39m
 [32mDTS[39m [1mdist\types-d6730d17.d.ts [22m[32m1.03 KB[39m
