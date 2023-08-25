@@ -1,0 +1,17 @@
+
+> @pancakeswap/farms@1.0.6 build E:\project\pancake-frontend-develop\packages\farms
+> npx tsx scripts/build.ts
+
+save farm config...
+Starting build farm config 1
+Farm list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/1.json
+Lp list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/priceHelperLps/1.json
+Starting build farm config 5
+Farm list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/5.json
+Lp list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/priceHelperLps/5.json
+Starting build farm config 56
+Farm list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/56.json
+Lp list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/priceHelperLps/56.json
+Starting build farm config 97
+Farm list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/97.json
+Lp list saved to  E:\project\pancake-frontend-develop\packages\farms/lists/priceHelperLps/97.json

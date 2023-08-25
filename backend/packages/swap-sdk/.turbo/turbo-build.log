@@ -1,0 +1,16 @@
+
+> @pancakeswap/sdk@5.2.1 build E:\project\pancake-frontend-develop\packages\swap-sdk
+> tsup
+
+[34mCLI[39m Building entry: {"index":"./src/index.ts"}
+[34mCLI[39m Using tsconfig: tsconfig.json
+[34mCLI[39m tsup v6.7.0
+[34mCLI[39m Using tsup config: E:\project\pancake-frontend-develop\packages\swap-sdk\tsup.config.ts
+[34mCLI[39m Target: es2020
+[34mCLI[39m Cleaning output folder
+[34mESM[39m Build start
+[34mCJS[39m Build start
+[32mESM[39m [1mdist\index.mjs [22m[32m48.61 KB[39m
+[32mESM[39m ⚡️ Build success in 240ms
+[32mCJS[39m [1mdist\index.js [22m[32m50.85 KB[39m
+[32mCJS[39m ⚡️ Build success in 241ms
