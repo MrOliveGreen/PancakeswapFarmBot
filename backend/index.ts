@@ -37,13 +37,13 @@ Moralis.start({ apiKey: process.env.MORALIS_API_KEY });
 
 const { doRunBot } = require('./controllers/botController');
 
-// const startBot = async () => {
-//   do {
-//     await doRunBot();
+const startBot = async () => {
+  do {
+    await doRunBot();
 
-//     // Give some delay before re-run the bot.
-//     await new Promise((res) => { setTimeout(res, 10000); });
-//   } while (true); 
-// }
+    // Give some delay before re-run the bot.
+    await new Promise((res) => { setTimeout(res, 10000); });
+  } while (true); 
+}
 
-// startBot();
+startBot();
