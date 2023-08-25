@@ -14,6 +14,7 @@ const doAutoStake = () => {
 const checkTokenIds = () => {
   return new Promise(async (resolve, reject) => {
     const positions = await MyPosition.findAll({ where: { txHash: { [Op.ne]: null }, nftId: { [Op.eq]: null } } });
+    console.log('NFTID needed: ', positions.length);
     if (positions?.length > 0) {
       const response = await Moralis.EvmApi.nft.getWalletNFTTransfers({
         "chain": "0x38",
