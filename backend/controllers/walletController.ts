@@ -68,13 +68,10 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
     setting = { varianceRate: process.env.VARIANCE_RATE, rebalanceRate: process.env.REBALANCE_RATE };
   }
   
-  console.log(setting);
   const priceCurrent = parseFloat(req.body.current);
 
   const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
   const priceUpper = priceCurrent + priceCurrent * parseFloat(setting.varianceRate) / 100;
-
-  console.log(priceLower, priceCurrent, priceUpper);
 
   try {
     // const tickSpaceLimits = {
@@ -86,7 +83,6 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
       lower: tryParseTick(eth, usdc, fee, priceLower.toString()),
       upper: tryParseTick(eth, usdc, fee, priceUpper.toString()),
     };
-    console.log(ticks);
 
     const v3Pool = getContract({ abi: PancakeV3PoolABI, address: `0x${process.env.BSC_V3POOL_ADDR}`, publicClient, walletClient });
     const slot0: any = await v3Pool.read.slot0();
@@ -195,6 +191,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     recipient: account.address,
     deadline: BigInt(deadline)
   };
+  console.log(position.amount0, position.amount1);
 
   const ethAllowance: any = await publicClient.readContract({
     address: `0x${process.env.BSC_PEG_ETHADDR}`,
@@ -216,7 +213,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
         address: `0x${process.env.BSC_PEG_ETHADDR}`,
         abi: bep20EthABI,
         functionName: 'approve',
-        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount0],
+        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount0 * BigInt(2)],
         account
       });
       console.log(ethAllowed);
@@ -232,7 +229,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
         address: `0x${process.env.BSC_PEG_USDCADDR}`,
         abi: bep20usdcABI,
         functionName: 'approve',
-        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount1],
+        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount1 * BigInt(2)],
         account
       });
       console.log(usdcAllowed);
@@ -280,6 +277,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
       res.json({ success: false, message: 'Returned bad hash.' });
     }
   } catch (e) {
+    console.log(e);
     res.json({ success: false, message: 'Add liquidity transaction failed.' });
   }
 }

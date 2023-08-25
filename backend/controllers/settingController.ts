@@ -33,12 +33,21 @@ export const saveSetting: RequestHandler = async (req, res, next) => {
 
   try {
     const setting = await Setting.findOne();
-    await setting.update({
-      varianceRate: req.body.varianceRate,
-      rebalanceRate: req.body.rebalanceRate,
-      autoSwap: req.body.autoSwap ? 1 : 0,
-      autoAddLiquidity: req.body.autoAddLiquidity ? 1 : 0,
-    });
+    if(setting) {
+      await setting.update({
+        varianceRate: req.body.varianceRate,
+        rebalanceRate: req.body.rebalanceRate,
+        autoSwap: req.body.autoSwap ? 1 : 0,
+        autoAddLiquidity: req.body.autoAddLiquidity ? 1 : 0,
+      });
+    } else {
+      await Setting.create({
+        varianceRate: req.body.varianceRate,
+        rebalanceRate: req.body.rebalanceRate,
+        autoSwap: req.body.autoSwap ? 1 : 0,
+        autoAddLiquidity: req.body.autoAddLiquidity ? 1 : 0,
+      });
+    }
 
     res.json({ success: true, data: setting });
   } catch (err) {

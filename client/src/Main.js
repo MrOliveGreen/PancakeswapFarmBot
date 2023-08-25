@@ -71,8 +71,8 @@ const Main = () => {
     const fetchWalletStatus = async () => {
       const walletStatus = await getWalletStatus();
       if (walletStatus) {
-        setMyEthAmount(walletStatus.ethAmount);
-        setMyUsdcAmount(walletStatus.usdcAmount);
+        setMyEthAmount(parseFloat(walletStatus.ethAmount).toFixed(6));
+        setMyUsdcAmount(parseFloat(walletStatus.usdcAmount).toFixed(6));
         setWalletAddress(walletStatus.address);
       }
     };
@@ -80,10 +80,10 @@ const Main = () => {
     const fetchGetSetting = async () => {
       const res = await getSetting();
       if (res?.success) {
-        setVarianceRate(res.data.varianceRate);
-        setRebalanceRate(res.data.rebalanceRate);
-        setAutoSwap(res.data.autoSwap === 1 ? true : false);
-        setAutoAddLiquidity(res.data.autoAddLiquidity === 1 ? true : false);
+        setVarianceRate(res.data?.varianceRate ? res.data?.varianceRate : 10);
+        setRebalanceRate(res.data?.rebalanceRate ? res.data?.rebalanceRate : 50);
+        setAutoSwap(res.data?.autoSwap ? (res.data?.autoSwap === 1 ? true : false) : true);
+        setAutoAddLiquidity(res.data?.autoAddLiquidity ? (res.data?.autoAddLiquidity === 1 ? true : false) : true);
       }
     };
 
@@ -94,6 +94,7 @@ const Main = () => {
       }
     };
 
+    fetchTokenPrices()
     setInterval(fetchTokenPrices, 10000);
     fetchWalletStatus();
     fetchGetSetting();
@@ -102,12 +103,12 @@ const Main = () => {
 
   const debouncedEthGetTiedAmount = async () => {
     const data = await getTiedAmount("token0", eth, ethPrice / usdcPrice);
-    if (data?.success) setUsdc(parseFloat(data?.amount).toFixed(2));
+    if (data?.success) setUsdc(parseFloat(data?.amount));
   };
 
   const debouncedUsdcGetTiedAmount = async () => {
     const data = await getTiedAmount("token1", usdc, ethPrice / usdcPrice);
-    if (data) setEth(parseFloat(data?.amount).toFixed(2));
+    if (data) setEth(parseFloat(data?.amount));
   };
 
   const handleEthInputChange = (event) => {
@@ -133,7 +134,7 @@ const Main = () => {
   }, [debouncedUsdc]);
 
   const handleCreate = async () => {
-    setCreateLoading(false);
+    setCreateLoading(true);
     const res = await createPosition(usdc, ethPrice / usdcPrice);
     if (res?.success) {
       setPositions([...positions, res.position]);
@@ -141,7 +142,7 @@ const Main = () => {
         variant: "success",
         autoHideDuration: 1500,
       });
-      setCreateLoading(true);
+      setCreateLoading(false);
     } else {
       enqueueSnackbar("Something went wrong!", {
         variant: "error",
@@ -162,6 +163,7 @@ const Main = () => {
         variant: "success",
         autoHideDuration: 1500,
       });
+      debouncedUsdcGetTiedAmount();
     } else {
       enqueueSnackbar("Something went wrong!", {
         variant: "error",
@@ -188,11 +190,11 @@ const Main = () => {
             <div className="text-start">
               {ethPrice && usdcPrice ? (
                 <>
-                  <h5>ETH price: {ethPrice ? ethPrice.toFixed(2) : ""} USD</h5>
+                  <h5>ETH price: {ethPrice ? ethPrice.toFixed(6) : ""} USD</h5>
                   <h5>
-                    USDC price: {usdcPrice ? usdcPrice.toFixed(2) : ""} USD
+                    USDC price: {usdcPrice ? usdcPrice.toFixed(6) : ""} USD
                   </h5>
-                  <h5>ETH/USDC: {(ethPrice / usdcPrice).toFixed(2)} USD</h5>
+                  <h5>ETH/USDC: {(ethPrice / usdcPrice).toFixed(6)} USD</h5>
                 </>
               ) : (
                 <div
@@ -365,8 +367,7 @@ const Main = () => {
                             "Yes"
                           )
                         ) : cell.id === "earned" ? (
-                          `${row["cakeEarned"] ? row["cakeEarned"] : 0}/${
-                            row["feeEarned"] ? row["feeEarned"] : 0
+                          `${row["cakeEarned"] ? row["cakeEarned"] : 0}/${row["feeEarned"] ? row["feeEarned"] : 0
                           }`
                         ) : cell.id === "priceRate" ? (
                           parseFloat(row[cell.id]).toFixed(2)
@@ -377,11 +378,12 @@ const Main = () => {
                             href={`https://bscscan.com/tx/${row[cell.id]}`}
                             target="_blank"
                           >
-                            {row[cell.id]}
+                            {`${row[cell.id].substring(
+                              0,
+                              5
+                            )}...${row[cell.id].substring(row[cell.id].length - 4)}`}
                           </a>
-                        ) : (
-                          row[cell.id]
-                        )}
+                        ) : row[cell.id]}
                       </td>
                     ))}
                   </tr>
