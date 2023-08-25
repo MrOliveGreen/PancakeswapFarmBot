@@ -16,12 +16,12 @@ const MyPosition = db.myposition;
 
 const walletClient = createWalletClient({
   chain: bsc,
-  transport: http()
+  transport: http(process.env.BSC_RPC_URL)
 })
 
 const publicClient = createPublicClient({
   chain: bsc,
-  transport: http()
+  transport: http(process.env.BSC_RPC_URL)
 })
 
 const account = privateKeyToAccount(`0x${process.env.PRIVATE_KEY}`);
