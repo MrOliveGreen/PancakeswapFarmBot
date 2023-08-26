@@ -5,6 +5,7 @@
   "workspaces": [
     "packages/*"
   ],
+  "packageManager": "pnpm@8.6.0",
   "main": "index.ts",
   "scripts": {
     "build": "turbo run build",
