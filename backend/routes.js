@@ -6,9 +6,9 @@ const {
   getWalletStatus,
   getTiedAmount,
   createPosition,
-  getPositions,
 } = require("./controllers/walletController");
 const { getSetting, saveSetting } = require("./controllers/settingController");
+const { getPositions } = require("./controllers/positionController");
 
 router.post("/getTokenPrices", body(), getTokenPrices);
 router.post("/getWalletStatus", body(), getWalletStatus);
