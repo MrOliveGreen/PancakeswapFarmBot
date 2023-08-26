@@ -53,6 +53,7 @@ const Main = () => {
   const [autoSwap, setAutoSwap] = useState(false);
   const [autoAddLiquidity, setAutoAddLiquidity] = useState(false);
   const [positions, setPositions] = useState([]);
+  const [createLoading, setCreateLoading] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
   const [debouncedEth] = useDebounce(eth, 500);
@@ -93,7 +94,7 @@ const Main = () => {
       }
     };
 
-    fetchTokenPrices();
+    setInterval(fetchTokenPrices, 10000);
     fetchWalletStatus();
     fetchGetSetting();
     fetchGetPositions();
@@ -132,14 +133,15 @@ const Main = () => {
   }, [debouncedUsdc]);
 
   const handleCreate = async () => {
+    setCreateLoading(false);
     const res = await createPosition(usdc, ethPrice / usdcPrice);
     if (res?.success) {
-      console.log("response ===", res.position);
       setPositions([...positions, res.position]);
       enqueueSnackbar("Position is created successfully!", {
         variant: "success",
         autoHideDuration: 1500,
       });
+      setCreateLoading(true);
     } else {
       enqueueSnackbar("Something went wrong!", {
         variant: "error",
@@ -255,10 +257,16 @@ const Main = () => {
             <div className="text-end">
               <button
                 className="normal-btn text"
-                // disabled={!eth || !usdc || eth > ethAmount || usdc > usdcAmount}
+                disabled={
+                  !eth || !usdc || eth > myEthAmount || usdc > myUsdcAmount
+                }
                 onClick={handleCreate}
               >
-                Create
+                {createLoading ? (
+                  <ClipLoader color="#ffffff" size={35} />
+                ) : (
+                  "Create"
+                )}
               </button>
             </div>
           </div>
