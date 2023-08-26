@@ -1,11 +1,13 @@
-import logo from "./logo.svg";
+import { SnackbarProvider } from "notistack";
 import "./App.css";
 import Main from "./Main";
 
 function App() {
   return (
     <div className="App">
-      <Main />
+      <SnackbarProvider>
+        <Main />
+      </SnackbarProvider>
     </div>
   );
 }

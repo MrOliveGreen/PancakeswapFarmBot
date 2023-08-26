@@ -102,6 +102,14 @@ h5 {
   color: #282c34;
 }
 
+.normal-btn:disabled,
+.normal-btn[disabled] {
+  border: 1px solid #999999;
+  background-color: transparent;
+  color: #666666;
+  cursor: not-allowed;
+}
+
 .switch {
   position: relative;
   display: inline-block;

@@ -1,64 +1,66 @@
 import { useEffect, useState } from "react";
+import { useDebounce } from "use-debounce";
 import ClipLoader from "react-spinners/ClipLoader";
-import _debounce from "lodash/debounce";
-import { getTiedAmount, getTokenPrice, getWalletStatus } from "./Api";
-
-const ethPrice = 1700;
-const usdcPrice = 0.999;
-const myWallet = 0x123123123;
-const ethAmount = 2;
-const usdcAmount = 123;
+import { useSnackbar } from "notistack";
+import {
+  createPosition,
+  getPositions,
+  getSetting,
+  getTiedAmount,
+  getTokenPrice,
+  getWalletStatus,
+  saveSetting,
+} from "./Api";
 
 const headCells = [
   {
-    id: "name",
-    label: "Event",
+    id: "nftId",
+    label: "NFT ID",
   },
   {
-    id: "date",
+    id: "txHash",
+    label: "Tx Hash",
+  },
+  {
+    id: "isStaked",
+    label: "Staked",
+  },
+  {
+    id: "earned",
+    label: "Earned Cake/Fee",
+  },
+  {
+    id: "priceRate",
+    label: "Price Rate",
+  },
+  {
+    id: "createdAt",
     label: "Date",
   },
-  {
-    id: "time",
-    label: "Time",
-  },
-  {
-    id: "location",
-    label: "Location",
-  },
-];
-
-function createData(name, date, time, location) {
-  return {
-    name,
-    date,
-    time,
-    location,
-  };
-}
-
-const rows = [
-  createData("#876361", "12 Dev, 2020", "Elisabeth McQueen", 4),
-  createData("#876362", "12 Dev, 2020", "Elisabeth McQueen", 4),
-  createData("#876363", "12 Dev, 2020", "Elisabeth McQueen", 4),
-  createData("#876364", "12 Dev, 2020", "Elisabeth McQueen", 4),
-  createData("#876365", "12 Dev, 2020", "Elisabeth McQueen", 4),
-  createData("#876366", "12 Dev, 2020", "Elisabeth McQueen", 4),
 ];
 
 const Main = () => {
-  const [eth, setEth] = useState("");
-  const [usdc, setUsdc] = useState("");
+  const [eth, setEth] = useState();
+  const [usdc, setUsdc] = useState();
   const [ethPrice, setEthPrice] = useState();
   const [usdcPrice, setUsdcPrice] = useState();
   const [myEthAmount, setMyEthAmount] = useState();
   const [myUsdcAmount, setMyUsdcAmount] = useState();
   const [walletAddress, setWalletAddress] = useState("");
+  const [focus, setFocus] = useState(0);
+  const [varianceRate, setVarianceRate] = useState("");
+  const [rebalanceRate, setRebalanceRate] = useState("");
+  const [autoSwap, setAutoSwap] = useState(false);
+  const [autoAddLiquidity, setAutoAddLiquidity] = useState(false);
+  const [positions, setPositions] = useState([]);
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [debouncedEth] = useDebounce(eth, 500);
+  const [debouncedUsdc] = useDebounce(usdc, 500);
 
   useEffect(() => {
     const fetchTokenPrices = async () => {
       const tokenPrices = await getTokenPrice();
-      console.log("tokenPrices =====", tokenPrices);
       if (tokenPrices) {
         setEthPrice(tokenPrices?.ethPrice);
         setUsdcPrice(tokenPrices?.usdcPrice);
@@ -67,7 +69,6 @@ const Main = () => {
 
     const fetchWalletStatus = async () => {
       const walletStatus = await getWalletStatus();
-      console.log("walletStatus =====", walletStatus);
       if (walletStatus) {
         setMyEthAmount(walletStatus.ethAmount);
         setMyUsdcAmount(walletStatus.usdcAmount);
@@ -75,46 +76,107 @@ const Main = () => {
       }
     };
 
+    const fetchGetSetting = async () => {
+      const res = await getSetting();
+      if (res?.success) {
+        setVarianceRate(res.data.varianceRate);
+        setRebalanceRate(res.data.rebalanceRate);
+        setAutoSwap(res.data.autoSwap === 1 ? true : false);
+        setAutoAddLiquidity(res.data.autoAddLiquidity === 1 ? true : false);
+      }
+    };
+
+    const fetchGetPositions = async () => {
+      const res = await getPositions();
+      if (res?.success) {
+        setPositions(res.data);
+      }
+    };
+
     fetchTokenPrices();
     fetchWalletStatus();
+    fetchGetSetting();
+    fetchGetPositions();
   }, []);
 
-  const debouncedEthGetTiedAmount = _debounce(async () => {
+  const debouncedEthGetTiedAmount = async () => {
     const data = await getTiedAmount("token0", eth, ethPrice / usdcPrice);
-    setUsdc(data.amount);
-  }, 500);
+    if (data?.success) setUsdc(parseFloat(data?.amount).toFixed(2));
+  };
 
-  const debouncedUsdcGetTiedAmount = _debounce(async () => {
+  const debouncedUsdcGetTiedAmount = async () => {
     const data = await getTiedAmount("token1", usdc, ethPrice / usdcPrice);
-    setEth(data.amount);
-  }, 500);
+    if (data) setEth(parseFloat(data?.amount).toFixed(2));
+  };
 
   const handleEthInputChange = (event) => {
     setEth(event.target.value);
-    debouncedEthGetTiedAmount(); // Call the debounced function
   };
 
   const handleUsdcInputChange = (event) => {
     setUsdc(event.target.value);
-    debouncedUsdcGetTiedAmount(); // Call the debounced function
   };
 
   useEffect(() => {
-    return () => {
-      debouncedEthGetTiedAmount.cancel();
-      debouncedUsdcGetTiedAmount.cancel();
-    };
-  }, []);
+    // Run the debounced function whenever `eth` or `usdc` values change
+    if (focus === 1) {
+      debouncedEthGetTiedAmount(); // Call the debounced function
+    }
+  }, [debouncedEth]);
 
   useEffect(() => {
     // Run the debounced function whenever `eth` or `usdc` values change
-    debouncedEthGetTiedAmount(eth);
-  }, [eth]);
+    if (focus === 2) {
+      debouncedUsdcGetTiedAmount(usdc);
+    }
+  }, [debouncedUsdc]);
 
-  useEffect(() => {
-    // Run the debounced function whenever `eth` or `usdc` values change
-    debouncedUsdcGetTiedAmount(usdc);
-  }, [usdc]);
+  const handleCreate = async () => {
+    const res = await createPosition(usdc, ethPrice / usdcPrice);
+    if (res?.success) {
+      console.log("response ===", res.position);
+      setPositions([...positions, res.position]);
+      enqueueSnackbar("Position is created successfully!", {
+        variant: "success",
+        autoHideDuration: 1500,
+      });
+    } else {
+      enqueueSnackbar("Something went wrong!", {
+        variant: "error",
+        autoHideDuration: 1500,
+      });
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    const res = await saveSetting(
+      varianceRate,
+      rebalanceRate,
+      autoSwap,
+      autoAddLiquidity
+    );
+    if (res?.success) {
+      enqueueSnackbar("Setting is saved successfully!", {
+        variant: "success",
+        autoHideDuration: 1500,
+      });
+    } else {
+      enqueueSnackbar("Something went wrong!", {
+        variant: "error",
+        autoHideDuration: 1500,
+      });
+    }
+  };
+
+  const changeDateFormate = (inputDate) => {
+    const date = new Date(inputDate);
+    const day = date.getDate();
+    const month = date.getMonth() + 1; // Months are zero-indexed, so we add 1
+    const year = date.getFullYear();
+
+    const formattedDate = `${month}/${day}/${year}`;
+    return formattedDate;
+  };
 
   return (
     <div className="main">
@@ -177,6 +239,7 @@ const Main = () => {
                 placeholder="Eth amount"
                 value={eth}
                 onChange={handleEthInputChange}
+                onFocus={(e) => setFocus(1)}
               />
             </div>
             <div className="input-box">
@@ -186,12 +249,14 @@ const Main = () => {
                 placeholder="USDC amount"
                 value={usdc}
                 onChange={handleUsdcInputChange}
+                onFocus={(e) => setFocus(2)}
               />
             </div>
             <div className="text-end">
               <button
                 className="normal-btn text"
-                disabled={eth > ethAmount || usdc > usdcAmount}
+                // disabled={!eth || !usdc || eth > ethAmount || usdc > usdcAmount}
+                onClick={handleCreate}
               >
                 Create
               </button>
@@ -206,29 +271,54 @@ const Main = () => {
           <div className="d-flex align-items-center justify-content-center gap-5">
             <div className="setting-input">
               <label htmlFor="variance">Variance Rate:</label>
-              <input id="variance" name="variance" type="text" />%
+              <input
+                id="variance"
+                name="variance"
+                type="text"
+                value={varianceRate}
+                onChange={(e) => setVarianceRate(e.target.value)}
+              />
+              %
             </div>
             <div className="setting-input">
               <label htmlFor="rebalance">Rebalance Rate:</label>
-              <input id="rebalance" name="rebalance" type="text" />%
+              <input
+                id="rebalance"
+                name="rebalance"
+                type="text"
+                value={rebalanceRate}
+                onChange={(e) => setRebalanceRate(e.target.value)}
+              />
+              %
             </div>
             <div>
               <div className="d-flex align-items-center gap-2 mb-3">
                 <label className="switch">
-                  <input type="checkbox" />
+                  <input
+                    type="checkbox"
+                    checked={autoSwap}
+                    onChange={() => setAutoSwap(!autoSwap)}
+                  />
                   <span className="slider round"></span>
                 </label>
                 <label>Auto swap</label>
               </div>
               <div className="d-flex align-items-center gap-2">
                 <label className="switch">
-                  <input type="checkbox" />
+                  <input
+                    type="checkbox"
+                    checked={autoAddLiquidity}
+                    onChange={() => setAutoAddLiquidity(!autoAddLiquidity)}
+                  />
                   <span className="slider round"></span>
                 </label>
                 <label>Auto add liquidity</label>
               </div>
             </div>
           </div>
+          <button className="normal-btn text mt-5" onClick={handleSaveSettings}>
+            Save
+          </button>
         </div>
 
         <div className="divider"></div>
@@ -254,10 +344,37 @@ const Main = () => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, map) => (
-                  <tr scope="row" key={map}>
+                {positions.map((row, index) => (
+                  <tr scope="row" key={index}>
                     {headCells.map((cell, index) => (
-                      <td key={index}>{row[cell.id]}</td>
+                      <td key={index}>
+                        {cell.id === "nftId" && !row[cell.id] ? (
+                          "?"
+                        ) : cell.id === "isStaked" ? (
+                          row[cell.id] === 0 ? (
+                            "No"
+                          ) : (
+                            "Yes"
+                          )
+                        ) : cell.id === "earned" ? (
+                          `${row["cakeEarned"] ? row["cakeEarned"] : 0}/${
+                            row["feeEarned"] ? row["feeEarned"] : 0
+                          }`
+                        ) : cell.id === "priceRate" ? (
+                          parseFloat(row[cell.id]).toFixed(2)
+                        ) : cell.id === "createdAt" ? (
+                          changeDateFormate(row[cell.id])
+                        ) : cell.id === "txHash" ? (
+                          <a
+                            href={`https://bscscan.com/tx/${row[cell.id]}`}
+                            target="_blank"
+                          >
+                            {row[cell.id]}
+                          </a>
+                        ) : (
+                          row[cell.id]
+                        )}
+                      </td>
                     ))}
                   </tr>
                 ))}
