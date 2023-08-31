@@ -1,16 +1,18 @@
 import { RequestHandler } from "express"
-import { createWalletClient, createPublicClient, http, formatUnits, getContract, parseUnits, formatEther } from 'viem'
+import { createWalletClient, createPublicClient, http, formatUnits, getContract, parseUnits, hexToBigInt, formatEther } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { bsc } from 'viem/chains'
 import { bep20EthABI } from "~/abi/bep20Eth"
 import { bep20usdcABI } from "~/abi/bep20usdc"
 import { PancakeV3PoolABI } from "~/abi/PancakeV3Pool"
 import { nonfungiblePositionManagerABI } from "~/abi/NonfungiblePositionManager";
+import { masterChefV3ABI } from "~/abi/MasterChefV3";
 import "isomorphic-unfetch";
 import { Token, Percent } from '@pancakeswap/sdk'
-import { Pool, Position } from '@pancakeswap/v3-sdk'
+import { Pool, Position, NonfungiblePositionManager, MasterChefV3 } from '@pancakeswap/v3-sdk'
 import { CurrencyAmount } from '@pancakeswap/swap-sdk-core'
-import { tryParseTick } from "./functions"
+import { tryParseTick, waitUntilGas, getPool, formatCurrencyAmount } from "./functions"
+import Moralis from 'moralis';
 
 const db = require("../models");
 const Setting = db.setting;
@@ -55,7 +57,7 @@ const usdc = new Token(56, `0x${process.env.BSC_PEG_USDCADDR}`, 18, 'usdc', 'USD
 const fee = 500;
 
 export const getTiedAmount: RequestHandler = async (req, res, next) => {
-  if (!req.body.inputed || !req.body.amount || !req.body.current) {
+  if (!req.body.inputed || !req.body.amount) {
     res.status(400).send({
       status: "failed",
       message: "Content cannot be empty."
@@ -67,17 +69,18 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
   if (!setting) {
     setting = { varianceRate: process.env.VARIANCE_RATE, rebalanceRate: process.env.REBALANCE_RATE };
   }
-  
-  const priceCurrent = parseFloat(req.body.current);
-
-  const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
-  const priceUpper = priceCurrent + priceCurrent * parseFloat(setting.varianceRate) / 100;
 
   try {
-    // const tickSpaceLimits = {
-    //   lower: nearestUsableTick(TickMath.MIN_TICK, TICK_SPACINGS[fee]),
-    //   upper: nearestUsableTick(TickMath.MAX_TICK, TICK_SPACINGS[fee])
-    // }
+    const ethPrice = await Moralis.EvmApi.token.getTokenPrice({
+      "chain": "0x38",
+      "exchange": "pancakeswapv2",
+      "address": String(process.env.BSC_PEG_ETHADDR)
+    });
+  
+    const priceCurrent = ethPrice?.toJSON().usdPrice;
+  
+    const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
+    const priceUpper = priceCurrent + priceCurrent * parseFloat(setting.varianceRate) / 100;
 
     const ticks: any = {
       lower: tryParseTick(eth, usdc, fee, priceLower.toString()),
@@ -114,7 +117,8 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
 
     res.json({
       success: true,
-      amount: tiedAmount
+      amount: tiedAmount,
+      current: priceCurrent
     })
   } catch (e) {
     console.log(e)
@@ -126,7 +130,7 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
 }
 
 export const createPosition: RequestHandler = async (req, res, next) => {
-  if (!req.body.amount || !req.body.current) {
+  if (!req.body.amount) {
     res.status(400).send({
       status: "failed",
       message: "Content cannot be empty."
@@ -139,8 +143,14 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     setting = { varianceRate: process.env.VARIANCE_RATE, rebalanceRate: process.env.REBALANCE_RATE };
   }
 
-  const priceCurrent = parseFloat(req.body.current);
+  const ethPrice = await Moralis.EvmApi.token.getTokenPrice({
+    "chain": "0x38",
+    "exchange": "pancakeswapv2",
+    "address": String(process.env.BSC_PEG_ETHADDR)
+  });
 
+  const priceCurrent = ethPrice?.toJSON().usdPrice;
+  
   const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
   const priceUpper = priceCurrent + priceCurrent * parseFloat(setting.varianceRate) / 100;
 
@@ -151,13 +161,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     upper: tryParseTick(eth, usdc, fee, priceUpper.toString()),
   }
 
-  const v3Pool = getContract({ abi: PancakeV3PoolABI, address: `0x${process.env.BSC_V3POOL_ADDR}`, publicClient, walletClient });
-  const slot0: any = await v3Pool.read.slot0();
-  const [sqrtPriceX96, tick, , , , feeProtocol] = slot0;
-  const liquidity: any = await v3Pool.read.liquidity();
-
-  const pool = new Pool(eth, usdc, fee, sqrtPriceX96, liquidity, tick);
-  pool.feeProtocol = feeProtocol;
+  const pool = await getPool(eth, usdc, fee);
 
   const position = Position.fromAmount1({
     pool: pool,
@@ -166,17 +170,10 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     amount1: parseUnits(String(req.body.amount), 18)
   });
 
-  const allowedSlippage: any = process.env.ALLOWED_SLIPPAGE;
   const deadline = Math.floor(Date.now() / 1000) + 20 * 60;
-  const options = {
-    slippageTolerance: new Percent(BigInt(allowedSlippage), BigInt(10000)),
-    recipient: account.address,
-    deadline: BigInt(deadline),
-    undefined,
-    createPool: false,
-  };
+  const slippageTolerance = new Percent(BigInt(String(process.env.ALLOWED_SLIPPAGE)), BigInt(10000));
 
-  const minimumAmounts = position.mintAmountsWithSlippage(options.slippageTolerance)
+  const minimumAmounts = position.mintAmountsWithSlippage(slippageTolerance)
 
   const cdata = {
     token0: position.pool.token0.address,
@@ -191,7 +188,6 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     recipient: account.address,
     deadline: BigInt(deadline)
   };
-  console.log(position.amount0, position.amount1);
 
   const ethAllowance: any = await publicClient.readContract({
     address: `0x${process.env.BSC_PEG_ETHADDR}`,
@@ -207,13 +203,16 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     args: [account.address, `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`]
   });
 
+  console.log(position.mintAmounts.amount0, ethAllowance);
+  console.log(position.mintAmounts.amount1, usdcAllowance);
+
   if (position.mintAmounts.amount0 > ethAllowance) {
     try {
       const ethAllowed = await walletClient.writeContract({
         address: `0x${process.env.BSC_PEG_ETHADDR}`,
         abi: bep20EthABI,
         functionName: 'approve',
-        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount0 * BigInt(2)],
+        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount0],
         account
       });
       console.log(ethAllowed);
@@ -229,7 +228,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
         address: `0x${process.env.BSC_PEG_USDCADDR}`,
         abi: bep20usdcABI,
         functionName: 'approve',
-        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount1 * BigInt(2)],
+        args: [`0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, position.mintAmounts.amount1],
         account
       });
       console.log(usdcAllowed);
@@ -240,44 +239,168 @@ export const createPosition: RequestHandler = async (req, res, next) => {
   }
 
   try {
-    const txHash = await walletClient.writeContract({
+    const wdata: any = {
       address: `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`,
       abi: nonfungiblePositionManagerABI,
       functionName: 'mint',
       args: [cdata],
       account,
       value: BigInt(0)
-    });
-    console.log(txHash);
-    if (txHash.includes(`0x`)) {
-      const mypos = {
-        fee: fee,
-        tickLower: position.tickLower,
-        tickUpper: position.tickUpper,
-        amount0Desired: formatUnits(position.mintAmounts.amount0, 18),
-        amount1Desired: formatUnits(position.mintAmounts.amount1, 18),
-        amount0Min: formatUnits(minimumAmounts.amount0, 18),
-        amount1Min: formatUnits(minimumAmounts.amount1, 18),
-        recipient: account.address,
-        deadline: deadline,
-        txHash: txHash,
-        isStaked: 0,
-        status: 0,
-        priceRate: priceCurrent,
-        varianceRate: setting.varianceRate,
-        rebalanceRate: setting.rebalanceRate,
-        prevPos: 0,
-        nextPos: 0,
-        isProcessing: 0
-      };
-      const created = await MyPosition.create(mypos);
+    };
 
-      res.json({ success: true, position: created });
-    } else {
-      res.json({ success: false, message: 'Returned bad hash.' });
-    }
+    const gasEstimated = await waitUntilGas(wdata);
+
+    if (gasEstimated) {
+      const txHash = await walletClient.writeContract(wdata);
+
+      if (txHash.includes(`0x`)) {
+        const mypos = {
+          fee: fee,
+          tickLower: position.tickLower,
+          tickUpper: position.tickUpper,
+          amount0Desired: formatUnits(position.mintAmounts.amount0, 18),
+          amount1Desired: formatUnits(position.mintAmounts.amount1, 18),
+          amount0Min: formatUnits(minimumAmounts.amount0, 18),
+          amount1Min: formatUnits(minimumAmounts.amount1, 18),
+          recipient: account.address,
+          deadline: deadline,
+          txHash: txHash,
+          isStaked: 0,
+          status: 0,
+          priceRate: priceCurrent,
+          varianceRate: setting.varianceRate,
+          rebalanceRate: setting.rebalanceRate,
+          prevPos: 0,
+          nextPos: 0,
+          isProcessing: 0
+        };
+        const created = await MyPosition.create(mypos);
+
+        res.json({ success: true, position: created });
+      } else
+        res.json({ success: false, message: 'Returned bad hash.' });
+    } else
+      res.json({ success: false, message: 'Transaction reverted. Gas estimation failed.' });
   } catch (e) {
     console.log(e);
     res.json({ success: false, message: 'Add liquidity transaction failed.' });
+  }
+}
+
+export const removePosition: RequestHandler = async (req, res, next) => {
+  if (!req.body.posId) {
+    res.status(400).send({
+      status: "failed",
+      message: "Content cannot be empty."
+    });
+    return;
+  }
+
+  const mypos = await MyPosition.findOne({ where: { id: req.body.posId } });
+  if (!mypos) {
+    res.json({
+      success: false,
+      amount: 'Position not found.'
+    });
+    return;
+  }
+
+  try {
+    const posManager = getContract({ abi: nonfungiblePositionManagerABI, address: `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`, publicClient, walletClient });
+    const posdata = await posManager.read.positions([BigInt(mypos.nftId)]);
+    const [, , , , , tickLower, tickUpper, liquidity, , , ,] = posdata;
+
+    const pool = await getPool(eth, usdc, fee);
+    const positionSDK = new Position({
+      pool,
+      liquidity: liquidity.toString(),
+      tickLower: tickLower,
+      tickUpper: tickUpper,
+    });
+
+    const tokenOwner: any = await publicClient.readContract({
+      address: `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`,
+      abi: nonfungiblePositionManagerABI,
+      functionName: 'ownerOf',
+      args: [BigInt(mypos.nftId)]
+    });
+
+    const { result } = await publicClient.simulateContract({
+      address: `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`,
+      abi: nonfungiblePositionManagerABI,
+      functionName: 'collect',
+      args: [{ tokenId: BigInt(mypos.nftId), recipient: tokenOwner, amount0Max: BigInt(Number.MAX_SAFE_INTEGER), amount1Max: BigInt(Number.MAX_SAFE_INTEGER) }],
+      account: tokenOwner,
+      value: BigInt(0)
+    });
+
+    const [amount0, amount1] = result;
+    const feeValue0 = CurrencyAmount.fromRawAmount(pool.token0, amount0.toString());
+    const feeValue1 = CurrencyAmount.fromRawAmount(pool.token1, amount1.toString());
+
+    const liquidityPercentage = new Percent(100, 100);
+    const liquidityValue0 = CurrencyAmount.fromRawAmount(eth, positionSDK.amount0.quotient);
+    const liquidityValue1 = CurrencyAmount.fromRawAmount(usdc, positionSDK.amount1.quotient);
+
+    const options = {
+      tokenId: mypos.nftId,
+      liquidityPercentage,
+      slippageTolerance: new Percent(BigInt(String(process.env.ALLOWED_SLIPPAGE)), BigInt(10000)),
+      deadline: (Math.floor(Date.now() / 1000) + 20 * 60).toString(),
+      collectOptions: {
+        expectedCurrencyOwed0: feeValue0 ?? CurrencyAmount.fromRawAmount(liquidityValue0.currency, 0),
+        expectedCurrencyOwed1: feeValue1 ?? CurrencyAmount.fromRawAmount(liquidityValue1.currency, 0),
+        recipient: account.address,
+      }
+    };
+
+    const isStaked = (tokenOwner.toLowerCase() !== account.address.toLowerCase());
+    const managerAddr: any = isStaked ? `0x${process.env.MasterChefV3_ADDR}` : `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`;
+    const interfaceManager = isStaked ? MasterChefV3 : NonfungiblePositionManager
+    const { calldata, value } = interfaceManager.removeCallParameters(positionSDK, options);
+
+    const txn = {
+      to: managerAddr,
+      data: calldata,
+      value: hexToBigInt(value),
+      account,
+    }
+
+    publicClient.estimateGas(txn).then(async (gas) => {
+      console.log('gas: ', gas);
+      
+      const feeEarned = JSON.stringify({ 'eth': formatCurrencyAmount(feeValue0, 4, 'en-US'), 'usdc': formatCurrencyAmount(feeValue1, 4, 'en-US') });
+      let cakeEarned = null;
+      if(isStaked) {
+        const pendingCake = await publicClient.readContract({
+          address: `0x${process.env.MasterChefV3_ADDR}`,
+          abi: masterChefV3ABI,
+          functionName: 'pendingCake',
+          args: [BigInt(mypos.nftId)]
+        });
+
+        cakeEarned = formatEther(pendingCake);
+      }
+
+      const txHash = await walletClient.sendTransaction(txn);
+      console.log(txHash);
+
+      await mypos.update({ status: 1, isStaked: 0, feeEarned, cakeEarned, txHash });
+
+      res.json({ success: true });
+    }).catch((e) => {
+      console.log(e);
+      
+      res.json({ 
+        success: false,
+        message: "Transaction failed."
+      });
+    });
+  } catch (e) {
+    console.log(e);
+    res.json({ 
+      success: false,
+      message: "Error while removing the position."
+    });
   }
 }

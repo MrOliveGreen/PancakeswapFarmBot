@@ -6,25 +6,19 @@ const {
   getWalletStatus,
   getTiedAmount,
   createPosition,
+  removePosition
 } = require("./controllers/walletController");
 const { getSetting, saveSetting } = require("./controllers/settingController");
 const { getPositions } = require("./controllers/positionController");
 
 router.post("/getTokenPrices", body(), getTokenPrices);
 router.post("/getWalletStatus", body(), getWalletStatus);
-router.post(
-  "/getTiedAmount",
-  body("inputed", "amount", "current"),
-  getTiedAmount
-);
+router.post("/getTiedAmount", body("inputed", "amount", "current"), getTiedAmount);
 router.post("/createPosition", body("amount", "current"), createPosition);
+router.post("/removePosition", body("posId"), removePosition);
 
 router.post("/getSetting", body(), getSetting);
-router.post(
-  "/saveSetting",
-  body("varianceRate", "rebalanceRate", "autoSwap", "autoAddLiquidity"),
-  saveSetting
-);
+router.post("/saveSetting", body("varianceRate", "rebalanceRate", "autoSwap", "autoAddLiquidity"), saveSetting);
 
 router.post("/getPositions", body(), getPositions);
 
