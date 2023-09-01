@@ -12,12 +12,10 @@ module.exports = (sequelize, Sequelize) => {
         type: Sequelize.DOUBLE
       },
       swapFrom: {
-        type: Sequelize.STRING,
-        length: 10
+        type: Sequelize.STRING(10)
       },
       swapTo: {
-        type: Sequelize.STRING,
-        length: 10
+        type: Sequelize.STRING(10)
       },
       amount: {
         type: Sequelize.STRING
