@@ -11,6 +11,9 @@ importers:
       '@pancakeswap/sdk':
         specifier: workspace:*
         version: link:packages/swap-sdk
+      '@pancakeswap/smart-router':
+        specifier: workspace:*
+        version: link:packages/smart-router
       '@pancakeswap/swap-sdk-core':
         specifier: workspace:*
         version: link:packages/swap-sdk-core
@@ -38,6 +41,9 @@ importers:
       fs:
         specifier: ^0.0.1-security
         version: 0.0.1-security
+      graphql-request:
+        specifier: ^5.2.0
+        version: 5.2.0(graphql@16.6.0)
       helmet:
         specifier: ^5.0.2
         version: 5.0.2
@@ -6333,6 +6339,20 @@ packages:
       - encoding
     dev: false
 
+  /graphql-request@5.2.0(graphql@16.6.0):
+    resolution: {integrity: sha512-pLhKIvnMyBERL0dtFI3medKqWOz/RhHdcgbZ+hMMIb32mEPa5MJSzS4AuXxfI4sRAu6JVVk5tvXuGfCWl9JYWQ==}
+    peerDependencies:
+      graphql: 14 - 16
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.6.0)
+      cross-fetch: 3.1.8
+      extract-files: 9.0.0
+      form-data: 3.0.1
+      graphql: 16.6.0
+    transitivePeerDependencies:
+      - encoding
+    dev: false
+
   /graphql@16.6.0:
     resolution: {integrity: sha512-KPIBPDlW7NxrbT/eh4qPXz5FiFdL5UbaA0XUNz2Rp3Z3hqBSkbj0GVjwFDztsWVauZUWsbKHgMg++sk8UX0bkw==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
@@ -7683,6 +7703,7 @@ packages:
   /node-gyp-build@4.6.0:
     resolution: {integrity: sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==}
     hasBin: true
+    requiresBuild: true
     dev: true
 
   /node-releases@2.0.13:
