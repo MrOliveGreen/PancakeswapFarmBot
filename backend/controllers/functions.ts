@@ -1,11 +1,17 @@
-import { Token, Percent } from '@pancakeswap/sdk';
+import { Token } from '@pancakeswap/sdk';
 import { Price } from '@pancakeswap/swap-sdk-core';
 import { nearestUsableTick, TickMath, TICK_SPACINGS, FeeAmount, priceToClosestTick } from "@pancakeswap/v3-sdk";
 import { Pool, encodeSqrtRatioX96 } from '@pancakeswap/v3-sdk';
 import { createPublicClient, createWalletClient, http, getContract } from 'viem';
 import { bsc } from 'viem/chains';
 import { PancakeV3PoolABI } from "~/abi/PancakeV3Pool";
-import { Currency, CurrencyAmount, Fraction } from '@pancakeswap/sdk'
+import { Currency, CurrencyAmount, Fraction, TradeType } from '@pancakeswap/sdk';
+import { SmartRouter } from '@pancakeswap/smart-router/evm';
+import { GraphQLClient } from 'graphql-request';
+
+export const eth = new Token(56, `0x${process.env.BSC_PEG_ETHADDR}`, 18, 'weth', 'ETH');
+export const usdc = new Token(56, `0x${process.env.BSC_PEG_USDCADDR}`, 18, 'usdc', 'USDC');
+export const fee = 500;
 
 const tryParsePrice = (baseToken?: Token, quoteToken?: Token, value?: string) => {
     if (!baseToken || !quoteToken || !value) {
@@ -86,13 +92,13 @@ export const getPool = (token0: Token, token1: Token, fee: any): Promise<Pool> =
     })
 }
 
-export const waitUntilGas = (wdata: any) => {
+export const waitUntilGas = (wdata: any, isContract: Boolean = true) => {
     return new Promise(async (resolve, reject) => {
         let tried = 0, done = false;
 
         do {
             try {
-                const gas = await publicClient.estimateContractGas(wdata)
+                const gas = isContract ? await publicClient.estimateContractGas(wdata) : await publicClient.estimateGas(wdata)
                 console.log('gas:  ', gas);
                 done = true;
                 break;
@@ -133,4 +139,44 @@ export function formatCurrencyAmount(
         maximumFractionDigits: fixedDecimals,
         maximumSignificantDigits: fixedDecimals ? undefined : sigFigs,
     })
+}
+
+const v3SubgraphClient: any = new GraphQLClient('https://api.thegraph.com/subgraphs/name/pancakeswap/exchange-v3-bsc')
+const v2SubgraphClient: any = new GraphQLClient('https://proxy-worker-api.pancakeswap.com/bsc-exchange')
+
+const quoteProvider = SmartRouter.createQuoteProvider({
+    onChainProvider: () => publicClient,
+})
+
+export async function getBestTrade(swapAmount: CurrencyAmount<Currency>, swapFrom: Currency, swapTo: Currency) {
+    return new Promise(async (resolve, reject) => {
+        const [v2Pools, v3Pools] = await Promise.all([
+            SmartRouter.getV2CandidatePools({
+                onChainProvider: () => publicClient,
+                v2SubgraphProvider: () => v2SubgraphClient,
+                v3SubgraphProvider: () => v3SubgraphClient,
+                currencyA: swapFrom,
+                currencyB: swapTo,
+            }),
+            SmartRouter.getV3CandidatePools({
+                onChainProvider: () => publicClient,
+                subgraphProvider: () => v3SubgraphClient,
+                currencyA: swapFrom,
+                currencyB: swapTo,
+                subgraphCacheFallback: false,
+            }),
+        ]);
+
+        const pools = [...v2Pools, ...v3Pools]
+        const trade = await SmartRouter.getBestTrade(swapAmount, swapTo, TradeType.EXACT_INPUT, {
+            gasPriceWei: () => publicClient.getGasPrice(),
+            maxHops: 2,
+            maxSplits: 2,
+            poolProvider: SmartRouter.createStaticPoolProvider(pools),
+            quoteProvider,
+            quoterOptimization: true,
+        });
+
+        resolve(trade);
+    });
 }

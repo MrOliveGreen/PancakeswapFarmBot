@@ -50,7 +50,13 @@ module.exports = (sequelize, Sequelize) => {
       status: {
         type: Sequelize.INTEGER
       },
-      priceRate: {
+      priceAt: {
+        type: Sequelize.DOUBLE
+      },
+      priceLower: {
+        type: Sequelize.DOUBLE
+      },
+      priceUpper: {
         type: Sequelize.DOUBLE
       },
       varianceRate: {

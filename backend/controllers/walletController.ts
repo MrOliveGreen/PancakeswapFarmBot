@@ -8,10 +8,10 @@ import { PancakeV3PoolABI } from "~/abi/PancakeV3Pool"
 import { nonfungiblePositionManagerABI } from "~/abi/NonfungiblePositionManager";
 import { masterChefV3ABI } from "~/abi/MasterChefV3";
 import "isomorphic-unfetch";
-import { Token, Percent } from '@pancakeswap/sdk'
+import { Percent } from '@pancakeswap/sdk'
 import { Pool, Position, NonfungiblePositionManager, MasterChefV3 } from '@pancakeswap/v3-sdk'
 import { CurrencyAmount } from '@pancakeswap/swap-sdk-core'
-import { tryParseTick, waitUntilGas, getPool, formatCurrencyAmount } from "./functions"
+import { eth, usdc, fee, tryParseTick, waitUntilGas, getPool } from "./functions"
 import Moralis from 'moralis';
 
 const db = require("../models");
@@ -51,10 +51,6 @@ export const getWalletStatus: RequestHandler = async (req, res, next) => {
     address: account.address
   });
 }
-
-const eth = new Token(56, `0x${process.env.BSC_PEG_ETHADDR}`, 18, 'weth', 'ETH');
-const usdc = new Token(56, `0x${process.env.BSC_PEG_USDCADDR}`, 18, 'usdc', 'USDC');
-const fee = 500;
 
 export const getTiedAmount: RequestHandler = async (req, res, next) => {
   if (!req.body.inputed || !req.body.amount) {
@@ -267,7 +263,9 @@ export const createPosition: RequestHandler = async (req, res, next) => {
           txHash: txHash,
           isStaked: 0,
           status: 0,
-          priceRate: priceCurrent,
+          priceAt: priceCurrent,
+          priceLower: priceLower,
+          priceUpper: priceUpper,
           varianceRate: setting.varianceRate,
           rebalanceRate: setting.rebalanceRate,
           prevPos: 0,
@@ -369,7 +367,7 @@ export const removePosition: RequestHandler = async (req, res, next) => {
     publicClient.estimateGas(txn).then(async (gas) => {
       console.log('gas: ', gas);
       
-      const feeEarned = JSON.stringify({ 'eth': formatCurrencyAmount(feeValue0, 4, 'en-US'), 'usdc': formatCurrencyAmount(feeValue1, 4, 'en-US') });
+      const feeEarned = JSON.stringify({ 'eth': formatUnits(feeValue0.quotient, 18), 'usdc': formatUnits(feeValue1.quotient, 18) });
       let cakeEarned = null;
       if(isStaked) {
         const pendingCake = await publicClient.readContract({
