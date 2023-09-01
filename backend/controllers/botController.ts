@@ -89,8 +89,12 @@ const checkTokenIds = () => {
             const txn = txns.find(t => t.token_address.toLowerCase() == `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}` && t.transaction_hash.toLowerCase() == position.txHash.toLowerCase());
             console.log(txn);
             if (txn) {
+              await publicClient.waitForTransactionReceipt( { hash: position.txHash, confirmations: 2 } );
               let staked = await doAutoStake(txn.token_id);
-              await position.update({ nftId: txn.token_id, isStaked: staked });
+              if(staked)
+                await position.update({ nftId: txn.token_id, isStaked: staked });
+              else
+                console.log('Auto stake failed');
             }
           });
           resolve(true);
@@ -139,7 +143,6 @@ const calcFees = () => {
             functionName: 'pendingCake',
             args: [BigInt(positions[i].nftId)]
           });
-
           updates['cakeEarned'] = formatEther(pendingCake);
         }
 
@@ -238,6 +241,8 @@ const autoRemovePos = (posId: number): Promise<Boolean> => {
         const txHash = await walletClient.sendTransaction(txn);
         console.log(txHash);
 
+        await publicClient.waitForTransactionReceipt( { hash: txHash, confirmations: 2 } );
+
         await mypos.update({ status: 1, isStaked: 0, feeEarned, cakeEarned, txHash });
 
         resolve(true);
@@ -311,6 +316,8 @@ const autoSwap = (posId: number, swapFrom: string): Promise<Boolean> => {
     if (gasEstimated) {
       const txHash = await walletClient.sendTransaction(txn);
       console.log(`Autoswap Done. Tx: `, txHash);
+
+      await publicClient.waitForTransactionReceipt( { hash: txHash, confirmations: 2 } );
 
       await Swap.create({
         posId,
