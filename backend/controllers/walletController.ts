@@ -83,13 +83,7 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
       upper: tryParseTick(eth, usdc, fee, priceUpper.toString()),
     };
 
-    const v3Pool = getContract({ abi: PancakeV3PoolABI, address: `0x${process.env.BSC_V3POOL_ADDR}`, publicClient, walletClient });
-    const slot0: any = await v3Pool.read.slot0();
-    const [sqrtPriceX96, tick, , , , feeProtocol] = slot0;
-    const liquidity: any = await v3Pool.read.liquidity();
-
-    const pool = new Pool(eth, usdc, fee, sqrtPriceX96, liquidity, tick);
-    pool.feeProtocol = feeProtocol;
+    const pool = await getPool(eth, usdc, fee);
 
     let tiedAmount;
     if (req.body.inputed == "token0") {
@@ -289,6 +283,14 @@ export const removePosition: RequestHandler = async (req, res, next) => {
     res.json({
       success: false,
       amount: 'Position not found.'
+    });
+    return;
+  }
+
+  if(mypos.status != 0) {
+    res.json({
+      success: false,
+      amount: 'Position already removed.'
     });
     return;
   }
