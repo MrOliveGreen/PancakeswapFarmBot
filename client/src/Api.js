@@ -26,18 +26,18 @@ export const getWalletStatus = async () => {
   }
 };
 
-export const getTiedAmount = async (inputed, amount, current) => {
+export const getTiedAmount = async (inputed, amount) => {
   try {
-    const res = await api.post("/getTiedAmount", { inputed, amount, current });
+    const res = await api.post("/getTiedAmount", { inputed, amount });
     return res.data;
   } catch (error) {
     console.log("error;", error);
   }
 };
 
-export const createPosition = async (amount, current) => {
+export const createPosition = async (amount) => {
   try {
-    const res = await api.post("/createPosition", { amount, current });
+    const res = await api.post("/createPosition", { amount });
     return res.data;
   } catch (error) {
     console.log("error;", error);
@@ -75,6 +75,24 @@ export const saveSetting = async (
 export const getPositions = async () => {
   try {
     const res = await api.post("/getPositions");
+    return res.data;
+  } catch (error) {
+    console.log("error;", error);
+  }
+};
+
+export const updatePosition = async (props) => {
+  try {
+    const res = await api.post("/updatePosition", props);
+    return res.data;
+  } catch (error) {
+    console.log("error;", error);
+  }
+};
+
+export const removePosition = async (posId) => {
+  try {
+    const res = await api.post("/removePosition", { posId });
     return res.data;
   } catch (error) {
     console.log("error;", error);

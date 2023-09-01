@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDebounce } from "use-debounce";
 import ClipLoader from "react-spinners/ClipLoader";
 import { useSnackbar } from "notistack";
+import Modal from "react-modal";
 import {
   createPosition,
   getPositions,
@@ -9,7 +10,9 @@ import {
   getTiedAmount,
   getTokenPrice,
   getWalletStatus,
+  removePosition,
   saveSetting,
+  updatePosition,
 } from "./Api";
 
 const headCells = [
@@ -18,28 +21,30 @@ const headCells = [
     label: "NFT ID",
   },
   {
-    id: "txHash",
-    label: "Tx Hash",
+    id: "liquidity",
+    label: "Liquidity",
   },
   {
-    id: "isStaked",
-    label: "Staked",
+    id: "positionStatus",
+    label: "Status",
   },
   {
-    id: "earned",
-    label: "Earned Cake/Fee",
+    id: "feeEarned",
+    label: "Earned Fee",
   },
   {
-    id: "priceRate",
-    label: "Price Rate",
+    id: "cakeEarned",
+    label: "Earned Cake",
   },
   {
-    id: "createdAt",
-    label: "Date",
+    id: "action",
+    label: "Action",
   },
 ];
 
 const Main = () => {
+  const { enqueueSnackbar } = useSnackbar();
+
   const [eth, setEth] = useState();
   const [usdc, setUsdc] = useState();
   const [ethPrice, setEthPrice] = useState();
@@ -54,7 +59,13 @@ const Main = () => {
   const [autoAddLiquidity, setAutoAddLiquidity] = useState(false);
   const [positions, setPositions] = useState([]);
   const [createLoading, setCreateLoading] = useState(false);
-  const { enqueueSnackbar } = useSnackbar();
+  const [removeLoading, setRemoveLoading] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedData, setSelectedData] = useState({});
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(0);
+  const [rebalanceRateDetail, setRebalanceRateDetail] = useState(0);
+  const [updateLoading, setUpdateLoading] = useState(null);
 
   const [debouncedEth] = useDebounce(eth, 500);
   const [debouncedUsdc] = useDebounce(usdc, 500);
@@ -81,9 +92,19 @@ const Main = () => {
       const res = await getSetting();
       if (res?.success) {
         setVarianceRate(res.data?.varianceRate ? res.data?.varianceRate : 10);
-        setRebalanceRate(res.data?.rebalanceRate ? res.data?.rebalanceRate : 50);
-        setAutoSwap(res.data?.autoSwap ? (res.data?.autoSwap === 1 ? true : false) : true);
-        setAutoAddLiquidity(res.data?.autoAddLiquidity ? (res.data?.autoAddLiquidity === 1 ? true : false) : true);
+        setRebalanceRate(
+          res.data?.rebalanceRate ? res.data?.rebalanceRate : 50
+        );
+        setAutoSwap(
+          res.data?.autoSwap ? (res.data?.autoSwap === 1 ? true : false) : true
+        );
+        setAutoAddLiquidity(
+          res.data?.autoAddLiquidity
+            ? res.data?.autoAddLiquidity === 1
+              ? true
+              : false
+            : true
+        );
       }
     };
 
@@ -94,20 +115,21 @@ const Main = () => {
       }
     };
 
-    fetchTokenPrices()
+    fetchTokenPrices();
     setInterval(fetchTokenPrices, 10000);
     fetchWalletStatus();
     fetchGetSetting();
     fetchGetPositions();
+    setInterval(fetchGetPositions, 5000);
   }, []);
 
   const debouncedEthGetTiedAmount = async () => {
-    const data = await getTiedAmount("token0", eth, ethPrice / usdcPrice);
+    const data = await getTiedAmount("token0", eth);
     if (data?.success) setUsdc(parseFloat(data?.amount));
   };
 
   const debouncedUsdcGetTiedAmount = async () => {
-    const data = await getTiedAmount("token1", usdc, ethPrice / usdcPrice);
+    const data = await getTiedAmount("token1", usdc);
     if (data) setEth(parseFloat(data?.amount));
   };
 
@@ -135,7 +157,7 @@ const Main = () => {
 
   const handleCreate = async () => {
     setCreateLoading(true);
-    const res = await createPosition(usdc, ethPrice / usdcPrice);
+    const res = await createPosition(usdc);
     if (res?.success) {
       setPositions([...positions, res.position]);
       enqueueSnackbar("Position is created successfully!", {
@@ -180,6 +202,71 @@ const Main = () => {
 
     const formattedDate = `${month}/${day}/${year}`;
     return formattedDate;
+  };
+
+  const showDetailInfo = (data) => {
+    setIsOpen(true);
+    setSelectedData(data);
+    setMinPrice(data.priceLower);
+    setMaxPrice(data.priceUpper);
+    setRebalanceRateDetail(data.rebalanceRate);
+  };
+
+  const handleRemove = async (posId) => {
+    setRemoveLoading(posId);
+    const res = await removePosition(posId);
+    if (res?.success) {
+      enqueueSnackbar("Position is removed successfully!", {
+        variant: "success",
+        autoHideDuration: 1500,
+      });
+    } else {
+      enqueueSnackbar(res?.message, {
+        variant: "error",
+        autoHideDuration: 1500,
+      });
+    }
+    setRemoveLoading(null);
+  };
+
+  const handleUpdate = async (element) => {
+    setUpdateLoading(element);
+    const propsData =
+      element === "price"
+        ? { posId: selectedData.id, minPrice, maxPrice }
+        : { posId: selectedData.id, rebalanceRate: rebalanceRateDetail };
+    const res = await updatePosition(propsData);
+    if (res?.success) {
+      enqueueSnackbar("Position is updated successfully!", {
+        variant: "success",
+        autoHideDuration: 1500,
+      });
+      if (element === "price") {
+        setMinPrice(res.data.priceLower);
+        setMaxPrice(res.data.priceUpper);
+      } else {
+        setRebalanceRateDetail(res.data.rebalanceRate);
+      }
+    } else {
+      enqueueSnackbar(res?.message, {
+        variant: "error",
+        autoHideDuration: 1500,
+      });
+    }
+    setUpdateLoading(null);
+  };
+
+  const Status = (row) => {
+    if (row.row.status === 1) {
+      return <div className="status-box red">Removed</div>;
+    } else if (row.row.isProcessing === 1) {
+      return <div className="status-box blue">Processing</div>;
+    } else if (row.row.isStaked === 1) {
+      return <div className="status-box green">Staked</div>;
+    } else if (row.row.isStaked === 0) {
+      return <div className="status-box yellow">Not Staked</div>;
+    }
+    return null;
   };
 
   return (
@@ -345,47 +432,52 @@ const Main = () => {
                       {cell.label}
                     </th>
                   ))}
-                  {/* <th scope="col">Order</th> */}
-                  {/* <th scope="col">Name</th> */}
-                  {/* <th scope="col">Occupation</th> */}
-                  {/* <th scope="col">Contact</th> */}
-                  {/* <th scope="col">Education</th> */}
-                  {/* <th scope="col"></th> */}
                 </tr>
               </thead>
               <tbody>
                 {positions.map((row, index) => (
                   <tr scope="row" key={index}>
-                    {headCells.map((cell, index) => (
-                      <td key={index}>
-                        {cell.id === "nftId" && !row[cell.id] ? (
-                          "?"
-                        ) : cell.id === "isStaked" ? (
-                          row[cell.id] === 0 ? (
-                            "No"
+                    <td>{row["nftId"]}</td>
+                    <td>
+                      {`${row["amount0Desired"]}/`}
+                      <br />
+                      {`${row["amount1Desired"]}`}
+                    </td>
+                    <td>
+                      <Status row={row} />
+                    </td>
+                    <td>
+                      {row["feeEarned"] ? (
+                        <p>
+                          {`${JSON.parse(row["feeEarned"]).eth}/ `}
+                          <br /> {`${JSON.parse(row["feeEarned"]).usdc}`}
+                        </p>
+                      ) : (
+                        "0/0"
+                      )}
+                    </td>
+                    <td>{row["cakeEarned"]}</td>
+                    <td>
+                      <div className="d-flex gap-2 justify-content-center">
+                        <button
+                          className="action-btn remove"
+                          disabled={row["status"] === 1}
+                          onClick={() => handleRemove(row.id)}
+                        >
+                          {removeLoading === row.id ? (
+                            <ClipLoader color="#ffffff" size={20} />
                           ) : (
-                            "Yes"
-                          )
-                        ) : cell.id === "earned" ? (
-                          `${row["cakeEarned"] ? row["cakeEarned"] : 0}/${row["feeEarned"] ? row["feeEarned"] : 0
-                          }`
-                        ) : cell.id === "priceRate" ? (
-                          parseFloat(row[cell.id]).toFixed(2)
-                        ) : cell.id === "createdAt" ? (
-                          changeDateFormate(row[cell.id])
-                        ) : cell.id === "txHash" ? (
-                          <a
-                            href={`https://bscscan.com/tx/${row[cell.id]}`}
-                            target="_blank"
-                          >
-                            {`${row[cell.id].substring(
-                              0,
-                              5
-                            )}...${row[cell.id].substring(row[cell.id].length - 4)}`}
-                          </a>
-                        ) : row[cell.id]}
-                      </td>
-                    ))}
+                            "Remove"
+                          )}
+                        </button>
+                        <button
+                          className="action-btn detail"
+                          onClick={() => showDetailInfo(row)}
+                        >
+                          Detail
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -393,6 +485,156 @@ const Main = () => {
           </div>
         </div>
       </div>
+      <Modal
+        isOpen={isOpen}
+        onRequestClose={() => setIsOpen(false)}
+        contentLabel="Detail Information"
+        overlayClassName={{
+          base: "overlay-base",
+          afterOpen: "overlay-after",
+          beforeClose: "overlay-before",
+        }}
+        className={{
+          base: "content-base",
+          afterOpen: "content-after",
+          beforeClose: "content-before",
+        }}
+        closeTimeoutMS={500}
+        preventScroll={true}
+      >
+        <div className="close">
+          <i className="fa close-icon" onClick={() => setIsOpen(false)}>
+            &#xf00d;
+          </i>
+        </div>
+        <div className="modal-content">
+          <h2>Detail Information</h2>
+          <div className="text-start mt-3">
+            <p>
+              Liquidity: {`${selectedData["amount0Desired"]}/`}
+              {`${selectedData["amount1Desired"]}`}
+            </p>
+
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <p className="m-0">Status:</p>
+              <Status row={selectedData} />
+            </div>
+
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <p className="m-0">Tx Hash:</p>
+              <a
+                href={`https://bscscan.com/tx/${selectedData["txHash"]}`}
+                target="_blank"
+              >
+                {selectedData["txHash"]}
+              </a>
+            </div>
+
+            <p>
+              Earned Fee:{" "}
+              {selectedData["feeEarned"]
+                ? `${JSON.parse(selectedData["feeEarned"]).eth} /
+                          ${JSON.parse(selectedData["feeEarned"]).usdc}`
+                : "0/0"}
+            </p>
+
+            <p>Earned Cake: {selectedData["cakeEarned"]}</p>
+
+            <p>Created Price At: {selectedData["priceAt"]}</p>
+
+            <p>Variance Rate: {selectedData["varianceRate"]}%</p>
+
+            <div className="d-flex gap-5 align-items-center flex-wrap mb-3 justify-content-between">
+              <div className="price-input">
+                <label htmlFor="rebalanceRateDetail">Rebalance Rate: </label>
+                <input
+                  id="rebalanceRateDetail"
+                  name="rebalanceRateDetail"
+                  type="text"
+                  min="1"
+                  max="100"
+                  value={rebalanceRateDetail}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    if (
+                      !/^\d*$/.test(inputValue) ||
+                      Number(inputValue) < 0 ||
+                      Number(inputValue) > 101
+                    ) {
+                      return;
+                    }
+                    setRebalanceRateDetail(inputValue);
+                  }}
+                  style={{ width: "100px" }}
+                />{" "}
+                %
+              </div>
+              <button
+                className="save-btn"
+                onClick={() => handleUpdate("rebalance")}
+              >
+                {updateLoading === "rebalance" ? (
+                  <ClipLoader color="#ffffff" size={20} />
+                ) : (
+                  "Save"
+                )}
+              </button>
+            </div>
+
+            <p>Created At: {changeDateFormate(selectedData["createdAt"])}</p>
+            <div className="d-flex gap-5 align-items-center flex-wrap justify-content-between">
+              <div>
+                <div className="price-input mb-3">
+                  <label htmlFor="minPrice">Min Price: </label>
+                  <input
+                    id="minPrice"
+                    name="minPrice"
+                    type="text"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                  />
+                </div>
+
+                <div className="price-input">
+                  <label htmlFor="maxPrice">Max Price: </label>
+                  <input
+                    id="maxPrice"
+                    name="maxPrice"
+                    type="text"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                className="save-btn"
+                onClick={() => handleUpdate("price")}
+              >
+                {updateLoading === "price" ? (
+                  <ClipLoader color="#ffffff" size={20} />
+                ) : (
+                  "Save"
+                )}
+              </button>
+            </div>
+            <div className="d-flex align-items-center gap-3 mt-4">
+              <p className="m-0">Action:</p>
+              <button
+                className="action-btn remove dark"
+                disabled={selectedData["status"] === 1}
+                onClick={() => handleRemove(selectedData.id)}
+              >
+                {removeLoading === selectedData.id ? (
+                  <ClipLoader color="#ffffff" size={20} />
+                ) : (
+                  "Remove"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

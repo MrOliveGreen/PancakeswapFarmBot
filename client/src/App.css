@@ -97,7 +97,8 @@ h5 {
   padding: 10px 30px;
 }
 
-.normal-btn:hover {
+.normal-btn:hover,
+.detail:hover {
   background: #ffffff;
   color: #282c34;
 }
@@ -108,6 +109,75 @@ h5 {
   background-color: transparent;
   color: #666666;
   cursor: not-allowed;
+}
+
+.status-box {
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 16px;
+  padding: 5px 10px;
+}
+
+.red {
+  background: #d52a2a;
+}
+
+.blue {
+  background: #1a4e9b;
+}
+
+.yellow {
+  background: #b5a535;
+}
+
+.green {
+  background: #77be5e;
+}
+
+.action-btn {
+  border: none;
+  border-radius: 8px;
+  min-width: 100px;
+  color: #ffffff;
+  transition: 0.5s;
+  font-size: 16px;
+  padding: 7px 20px;
+  border: 1px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dark {
+  border: 1px solid #000 !important;
+  color: #000;
+}
+
+.dark:hover {
+  border: none;
+  color: "#FFFFFF";
+}
+
+.remove {
+  background: transparent;
+}
+
+.remove:hover {
+  background: #d52a2a;
+}
+
+.remove:disabled,
+.remove[disabled] {
+  border: 1px solid #999999;
+  background-color: transparent;
+  color: #666666;
+  cursor: not-allowed;
+}
+
+.detail {
+  /* background-color: #9e75fa; */
+  background: transparent;
+  border: 1px solid #ffffff;
 }
 
 .switch {
@@ -247,4 +317,146 @@ input:checked + .slider:before {
 .custom-table .box td,
 .custom-table .box th {
   border: none !important;
+}
+
+.modal-content {
+  padding: 50px;
+}
+
+.content-after > div {
+  display: flex;
+  flex-direction: column;
+  max-width: 700px;
+}
+
+.close {
+  position: absolute;
+  z-index: 500;
+  opacity: 1;
+  padding: 5px 13px;
+  border-radius: 100% !important;
+  font-weight: 100;
+  right: 0px;
+  top: 120px;
+  font-size: 45px;
+  color: #fff;
+  box-shadow: none;
+}
+
+.close i {
+  transition: all 0.5s;
+}
+
+.close i:hover {
+  cursor: pointer;
+  transform: scale(1.2);
+}
+
+.overlay-base {
+  padding: 1rem;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  background-color: #78bef7;
+  opacity: 0;
+  transition-property: background-color, opacity;
+  transition-duration: 500ms;
+  transition-timing-function: ease-in-out;
+  outline: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.menu-logo img {
+  max-width: 100%;
+}
+
+.overlay-after {
+  /* background-color: rgba(0, 0, 0, 0.9); */
+  background-color: #0e1a24e8;
+  opacity: 1;
+}
+
+.overlay-before {
+  background-color: rgba(0, 0, 0, 0);
+  opacity: 0;
+}
+
+.content-base {
+  position: relative;
+  margin: 0 auto;
+  border: 0;
+  outline: 0;
+  justify-content: center;
+  text-align: center;
+  height: 0%;
+  width: 0%;
+  background-color: transparent;
+  transition-property: background-color, width, height;
+  transition-duration: 500ms;
+  transition-timing-function: ease-in-out;
+}
+
+.content-after {
+  width: 100%;
+  height: auto;
+  min-height: 100vh;
+  padding: 10% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.modal-content {
+  border-radius: 10px;
+}
+
+.modal-content h2 {
+  font-family: "PT Mono", monospace;
+}
+
+.modal-content p {
+  font-family: "PT Mono", monospace;
+  font-size: 18px;
+}
+
+.price-input label {
+  font-family: "PT Mono", monospace;
+  font-size: 18px;
+}
+
+.price-input input {
+  background: transparent;
+  font-size: 20px;
+  padding: 5px 18px;
+  position: relative;
+  z-index: 10;
+  transition: 0.5s;
+  border-width: 0;
+  border: 1px solid #000;
+  color: #000;
+  border-radius: 8px;
+  width: 250px;
+  margin-left: 8px;
+}
+
+.save-btn {
+  background-color: transparent;
+  border: none;
+  border-radius: 8px;
+  min-width: 100px;
+  color: #000;
+  transition: 0.5s;
+  font-size: 16px;
+  padding: 7px 30px;
+  border: 1px solid #000;
+}
+
+.save-btn:hover {
+  background-color: #000;
+  color: #fff;
 }
