@@ -168,22 +168,21 @@ export const createPosition: RequestHandler = async (req, res, next) => {
 
   const deadline = Math.floor(Date.now() / 1000) + 20 * 60;
   const slippageTolerance = new Percent(BigInt(String(process.env.ALLOWED_SLIPPAGE)), BigInt(10000));
+  const minimumAmounts = position.mintAmountsWithSlippage(slippageTolerance);
 
-  const minimumAmounts = position.mintAmountsWithSlippage(slippageTolerance)
-
-  const cdata = {
-    token0: position.pool.token0.address,
-    token1: position.pool.token1.address,
-    fee: position.pool.fee,
-    tickLower: position.tickLower,
-    tickUpper: position.tickUpper,
-    amount0Desired: position.mintAmounts.amount0,
-    amount1Desired: position.mintAmounts.amount1,
-    amount0Min: minimumAmounts.amount0,
-    amount1Min: minimumAmounts.amount1,
+  const { calldata, value } = NonfungiblePositionManager.addCallParameters(position, {
+    slippageTolerance,
     recipient: account.address,
-    deadline: BigInt(deadline)
-  };
+    deadline: deadline.toString(),
+    useNative: undefined,
+    createPool: false,
+  });
+  const txn: any = {
+    to: `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`,
+    data: calldata,
+    value: hexToBigInt(value),
+    account,
+  }
 
   const ethAllowance: any = await publicClient.readContract({
     address: `0x${process.env.BSC_PEG_ETHADDR}`,
@@ -235,19 +234,10 @@ export const createPosition: RequestHandler = async (req, res, next) => {
   }
 
   try {
-    const wdata: any = {
-      address: `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}`,
-      abi: nonfungiblePositionManagerABI,
-      functionName: 'mint',
-      args: [cdata],
-      account,
-      value: BigInt(0)
-    };
-
-    const gasEstimated = await waitUntilGas(wdata);
+    const gasEstimated = await waitUntilGas(txn, false);
 
     if (gasEstimated) {
-      const txHash = await walletClient.writeContract(wdata);
+      const txHash = await walletClient.sendTransaction(txn);
 
       if (txHash.includes(`0x`)) {
         const mypos = {
@@ -365,7 +355,7 @@ export const removePosition: RequestHandler = async (req, res, next) => {
     }
 
     publicClient.estimateGas(txn).then(async (gas) => {
-      console.log('gas: ', gas);
+      console.log('Remove gas: ', gas);
       
       const feeEarned = JSON.stringify({ 'eth': formatUnits(feeValue0.quotient, 18), 'usdc': formatUnits(feeValue1.quotient, 18) });
       let cakeEarned = null;

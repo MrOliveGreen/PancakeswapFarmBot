@@ -21,5 +21,6 @@ db.sequelize = sequelize;
 
 db.myposition = require("./myposition.js")(sequelize, Sequelize);     
 db.setting = require("./setting.js")(sequelize, Sequelize);
+db.swap = require("./swap.js")(sequelize, Sequelize);
 
 module.exports = db;
