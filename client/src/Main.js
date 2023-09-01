@@ -118,6 +118,7 @@ const Main = () => {
     fetchTokenPrices();
     setInterval(fetchTokenPrices, 10000);
     fetchWalletStatus();
+    setInterval(fetchWalletStatus, 10000);
     fetchGetSetting();
     fetchGetPositions();
     setInterval(fetchGetPositions, 5000);
@@ -159,7 +160,7 @@ const Main = () => {
     setCreateLoading(true);
     const res = await createPosition(usdc);
     if (res?.success) {
-      setPositions([...positions, res.position]);
+      setPositions([res.position, ...positions]);
       enqueueSnackbar("Position is created successfully!", {
         variant: "success",
         autoHideDuration: 1500,
@@ -220,6 +221,10 @@ const Main = () => {
         variant: "success",
         autoHideDuration: 1500,
       });
+      const getRes = await getPositions();
+      if (getRes?.success) {
+        setPositions(res.data);
+      }
     } else {
       enqueueSnackbar(res?.message, {
         variant: "error",
