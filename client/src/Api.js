@@ -80,3 +80,21 @@ export const getPositions = async () => {
     console.log("error;", error);
   }
 };
+
+export const updatePosition = async (props) => {
+  try {
+    const res = await api.post("/updatePosition", props);
+    return res.data;
+  } catch (error) {
+    console.log("error;", error);
+  }
+};
+
+export const removePosition = async (posId) => {
+  try {
+    const res = await api.post("/removePosition", { posId });
+    return res.data;
+  } catch (error) {
+    console.log("error;", error);
+  }
+};

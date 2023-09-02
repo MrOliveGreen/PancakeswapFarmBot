@@ -9,7 +9,7 @@ const {
   removePosition
 } = require("./controllers/walletController");
 const { getSetting, saveSetting } = require("./controllers/settingController");
-const { getPositions } = require("./controllers/positionController");
+const { getPositions, updatePosition } = require("./controllers/positionController");
 
 router.post("/getTokenPrices", body(), getTokenPrices);
 router.post("/getWalletStatus", body(), getWalletStatus);
@@ -21,5 +21,6 @@ router.post("/getSetting", body(), getSetting);
 router.post("/saveSetting", body("varianceRate", "rebalanceRate", "autoSwap", "autoAddLiquidity"), saveSetting);
 
 router.post("/getPositions", body(), getPositions);
+router.post("/updatePosition", body(), updatePosition);
 
 module.exports = router;
