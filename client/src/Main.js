@@ -221,6 +221,10 @@ const Main = () => {
         variant: "success",
         autoHideDuration: 1500,
       });
+      const getRes = await getPositions();
+      if (getRes?.success) {
+        setPositions(res.data);
+      }
     } else {
       enqueueSnackbar(res?.message, {
         variant: "error",
