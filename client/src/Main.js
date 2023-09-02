@@ -118,6 +118,7 @@ const Main = () => {
     fetchTokenPrices();
     setInterval(fetchTokenPrices, 10000);
     fetchWalletStatus();
+    setInterval(fetchWalletStatus, 10000);
     fetchGetSetting();
     fetchGetPositions();
     setInterval(fetchGetPositions, 5000);
