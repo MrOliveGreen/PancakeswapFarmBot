@@ -337,7 +337,7 @@ input:checked + .slider:before {
   border-radius: 100% !important;
   font-weight: 100;
   right: 0px;
-  top: 80px;
+  top: 120px;
   font-size: 45px;
   color: #fff;
   box-shadow: none;

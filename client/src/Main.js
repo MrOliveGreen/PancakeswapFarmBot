@@ -124,12 +124,12 @@ const Main = () => {
   }, []);
 
   const debouncedEthGetTiedAmount = async () => {
-    const data = await getTiedAmount("token0", eth, ethPrice / usdcPrice);
+    const data = await getTiedAmount("token0", eth);
     if (data?.success) setUsdc(parseFloat(data?.amount));
   };
 
   const debouncedUsdcGetTiedAmount = async () => {
-    const data = await getTiedAmount("token1", usdc, ethPrice / usdcPrice);
+    const data = await getTiedAmount("token1", usdc);
     if (data) setEth(parseFloat(data?.amount));
   };
 
@@ -157,7 +157,7 @@ const Main = () => {
 
   const handleCreate = async () => {
     setCreateLoading(true);
-    const res = await createPosition(usdc, ethPrice / usdcPrice);
+    const res = await createPosition(usdc);
     if (res?.success) {
       setPositions([...positions, res.position]);
       enqueueSnackbar("Position is created successfully!", {
@@ -447,10 +447,14 @@ const Main = () => {
                       <Status row={row} />
                     </td>
                     <td>
-                      {row["feeEarned"]
-                        ? `${JSON.parse(row["feeEarned"]).eth} /
-                          ${JSON.parse(row["feeEarned"]).usdc}`
-                        : "0/0"}
+                      {row["feeEarned"] ? (
+                        <p>
+                          {`${JSON.parse(row["feeEarned"]).eth}/ `}
+                          <br /> {`${JSON.parse(row["feeEarned"]).usdc}`}
+                        </p>
+                      ) : (
+                        "0/0"
+                      )}
                     </td>
                     <td>{row["cakeEarned"]}</td>
                     <td>
@@ -522,9 +526,7 @@ const Main = () => {
                 href={`https://bscscan.com/tx/${selectedData["txHash"]}`}
                 target="_blank"
               >
-                {`${selectedData["txHash"]?.substring(0, 5)}...${selectedData[
-                  "txHash"
-                ]?.substring(selectedData["txHash"].length - 4)}`}
+                {selectedData["txHash"]}
               </a>
             </div>
 
