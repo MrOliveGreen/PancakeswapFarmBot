@@ -72,9 +72,9 @@ export const getTiedAmount: RequestHandler = async (req, res, next) => {
       "exchange": "pancakeswapv2",
       "address": String(process.env.BSC_PEG_ETHADDR)
     });
-  
+
     const priceCurrent = ethPrice?.toJSON().usdPrice;
-  
+
     const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
     const priceUpper = priceCurrent + priceCurrent * parseFloat(setting.varianceRate) / 100;
 
@@ -140,7 +140,7 @@ export const createPosition: RequestHandler = async (req, res, next) => {
   });
 
   const priceCurrent = ethPrice?.toJSON().usdPrice;
-  
+
   const priceLower = priceCurrent - priceCurrent * parseFloat(setting.varianceRate) / 100;
   const priceUpper = priceCurrent + priceCurrent * parseFloat(setting.varianceRate) / 100;
 
@@ -233,7 +233,8 @@ export const createPosition: RequestHandler = async (req, res, next) => {
     if (gasEstimated) {
       const txHash = await walletClient.sendTransaction(txn);
 
-      if (txHash.includes(`0x`)) {
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+      if (receipt && receipt.status == "success") {
         const mypos = {
           fee: fee,
           tickLower: position.tickLower,
@@ -260,12 +261,12 @@ export const createPosition: RequestHandler = async (req, res, next) => {
 
         res.json({ success: true, position: created });
       } else
-        res.json({ success: false, message: 'Returned bad hash.' });
+        res.json({ success: false, message: 'Transaction failed. Please check the gas or try again.' });
     } else
-      res.json({ success: false, message: 'Transaction reverted. Gas estimation failed.' });
+      res.json({ success: false, message: 'Transaction reverted. Please check the gas or try again.' });
   } catch (e) {
     console.log(e);
-    res.json({ success: false, message: 'Add liquidity transaction failed.' });
+    res.json({ success: false, message: 'Transaction failed. Please check the gas or try again.' });
   }
 }
 
@@ -287,7 +288,7 @@ export const removePosition: RequestHandler = async (req, res, next) => {
     return;
   }
 
-  if(mypos.status != 0) {
+  if (mypos.status != 0) {
     res.json({
       success: false,
       amount: 'Position already removed.'
@@ -358,10 +359,10 @@ export const removePosition: RequestHandler = async (req, res, next) => {
 
     publicClient.estimateGas(txn).then(async (gas) => {
       console.log('Remove gas: ', gas);
-      
+
       const feeEarned = JSON.stringify({ 'eth': formatUnits(feeValue0.quotient, 18), 'usdc': formatUnits(feeValue1.quotient, 18) });
       let cakeEarned = null;
-      if(isStaked) {
+      if (isStaked) {
         const pendingCake = await publicClient.readContract({
           address: `0x${process.env.MasterChefV3_ADDR}`,
           abi: masterChefV3ABI,
@@ -375,20 +376,24 @@ export const removePosition: RequestHandler = async (req, res, next) => {
       const txHash = await walletClient.sendTransaction(txn);
       console.log(txHash);
 
-      await mypos.update({ status: 1, isStaked: 0, feeEarned, cakeEarned, txHash });
-
-      res.json({ success: true });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+      if (receipt && receipt.status == "success") {
+        await mypos.update({ status: 1, isStaked: 0, feeEarned, cakeEarned, txHash });
+        res.json({ success: true });
+      } else {
+        res.json({ success: false, message: "Transaction failed. Please check the gas or try again." });
+      }
     }).catch((e) => {
       console.log(e);
-      
-      res.json({ 
+
+      res.json({
         success: false,
-        message: "Transaction failed."
+        message: "Transaction failed. Please check the gas or try again."
       });
     });
   } catch (e) {
     console.log(e);
-    res.json({ 
+    res.json({
       success: false,
       message: "Error while removing the position."
     });
