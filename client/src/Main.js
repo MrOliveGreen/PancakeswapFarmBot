@@ -165,13 +165,13 @@ const Main = () => {
         variant: "success",
         autoHideDuration: 1500,
       });
-      setCreateLoading(false);
     } else {
       enqueueSnackbar("Something went wrong!", {
         variant: "error",
         autoHideDuration: 1500,
       });
     }
+    setCreateLoading(false);
   };
 
   const handleSaveSettings = async () => {
@@ -331,7 +331,7 @@ const Main = () => {
             <div className="input-box">
               <h5>ETH</h5>
               <input
-                type="text"
+                type="number"
                 placeholder="Eth amount"
                 value={eth}
                 onChange={handleEthInputChange}
@@ -341,7 +341,7 @@ const Main = () => {
             <div className="input-box">
               <h5>USDC</h5>
               <input
-                type="text"
+                type="number"
                 placeholder="USDC amount"
                 value={usdc}
                 onChange={handleUsdcInputChange}
@@ -440,7 +440,7 @@ const Main = () => {
                 </tr>
               </thead>
               <tbody>
-                {positions.map((row, index) => (
+                {positions?.map((row, index) => (
                   <tr scope="row" key={index}>
                     <td>{row["nftId"]}</td>
                     <td>
