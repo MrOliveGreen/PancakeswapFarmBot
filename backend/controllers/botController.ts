@@ -89,12 +89,16 @@ const checkTokenIds = () => {
             const txn = txns.find(t => t.token_address.toLowerCase() == `0x${process.env.NF_V3_POSITION_MANAGER_ADDR}` && t.transaction_hash.toLowerCase() == position.txHash.toLowerCase());
             console.log(txn);
             if (txn) {
-              await publicClient.waitForTransactionReceipt( { hash: position.txHash, confirmations: 2 } );
-              let staked = await doAutoStake(txn.token_id);
-              if(staked)
-                await position.update({ nftId: txn.token_id, isStaked: staked });
-              else
-                console.log('Auto stake failed');
+              const receipt = await publicClient.waitForTransactionReceipt({ hash: position.txHash, confirmations: 2 });
+              if (receipt && receipt.status == 'success') {
+                let staked = await doAutoStake(txn.token_id);
+                if (staked)
+                  await position.update({ nftId: txn.token_id, isStaked: staked });
+                else
+                  console.log('Auto stake failed');
+              } else {
+                console.log('Autostake transaction failed. Receipt returned reverted.');
+              }
             }
           });
           resolve(true);
@@ -241,11 +245,14 @@ const autoRemovePos = (posId: number): Promise<Boolean> => {
         const txHash = await walletClient.sendTransaction(txn);
         console.log(txHash);
 
-        await publicClient.waitForTransactionReceipt( { hash: txHash, confirmations: 2 } );
-
-        await mypos.update({ status: 1, isStaked: 0, feeEarned, cakeEarned, txHash });
-
-        resolve(true);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+        if (receipt && receipt.status == 'success') {
+          await mypos.update({ status: 1, isStaked: 0, feeEarned, cakeEarned, txHash });
+          resolve(true);
+        } else {
+          console.log('Auto remove pos transaction failed. Receipt returned reverted.');
+          resolve(false);
+        }
       }).catch((e) => {
         console.log(e);
         resolve(false);
@@ -317,17 +324,21 @@ const autoSwap = (posId: number, swapFrom: string): Promise<Boolean> => {
       const txHash = await walletClient.sendTransaction(txn);
       console.log(`Autoswap Done. Tx: `, txHash);
 
-      await publicClient.waitForTransactionReceipt( { hash: txHash, confirmations: 2 } );
-
-      await Swap.create({
-        posId,
-        rebalanceRate: mypos.rebalanceRate,
-        swapFrom,
-        swapTo: (swapFrom == "usdc" ? "eth" : "usdc"),
-        amount: formatUnits(swapAmount.quotient, 18),
-        txHash
-      });
-      resolve(true);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 2 });
+      if (receipt && receipt.status == 'success') {
+        await Swap.create({
+          posId,
+          rebalanceRate: mypos.rebalanceRate,
+          swapFrom,
+          swapTo: (swapFrom == "usdc" ? "eth" : "usdc"),
+          amount: formatUnits(swapAmount.quotient, 18),
+          txHash
+        });
+        resolve(true);
+      } else {
+        console.log('Auto swap transaction failed. Receipt returned reverted.');
+        resolve(false);
+      }
     } else {
       console.log('Transaction reverted. Gas estimation failed.');
       resolve(false);
@@ -384,7 +395,7 @@ const autoCreatePosition = (posId: number) => {
         var position: any;
         const token1Amount = CurrencyAmount.fromRawAmount(usdc, usdcAmount);
 
-        for (let i = 2; i > 0; i--) {
+        for (let i = 100; i > 0; i--) {
           const rate = new Percent(i, 100);
           const possibleAmount = token1Amount.multiply(rate);
           const possiblePosition = Position.fromAmount1({
